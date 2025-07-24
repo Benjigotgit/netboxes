@@ -1,6 +1,7 @@
 export const DEFAULT_CDN_URL = 'https://cdn.netboxes.dev';
 export const WASM_VERSION = '1.0.0';
 export const API_VERSION = '1.0.0';
+export const IS_DEVELOPMENT = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
 export const SUPPORTED_FEATURES = [
   'terminal',

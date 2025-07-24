@@ -122,11 +122,51 @@ export class DevEnvironment implements IDevEnvironment {
     );
     
     this.worker = createWorker(workerUrl);
-    this.workerApi = wrap(this.worker);
+    
+    // For local development with mock worker, use a simplified wrapper
+    if (workerUrl.startsWith('blob:')) {
+      this.workerApi = this.createMockWorkerApi(this.worker);
+    } else {
+      this.workerApi = wrap(this.worker);
+    }
     
     await this.workerApi.initialize({
       wasmUrl: this.assetLoader.getAssetUrl(ASSET_PATHS.wasmModule)
     });
+  }
+  
+  private createMockWorkerApi(worker: Worker): Remote<WorkerAPI> {
+    let messageId = 0;
+    const pendingCalls = new Map<number, { resolve: Function; reject: Function }>();
+    
+    worker.addEventListener('message', (event) => {
+      const { id, result, error } = event.data;
+      const pending = pendingCalls.get(id);
+      if (pending) {
+        pendingCalls.delete(id);
+        if (error) {
+          pending.reject(new Error(error));
+        } else {
+          pending.resolve(result);
+        }
+      }
+    });
+    
+    const callMethod = (method: string, ...args: any[]): Promise<any> => {
+      return new Promise((resolve, reject) => {
+        const id = messageId++;
+        pendingCalls.set(id, { resolve, reject });
+        worker.postMessage({ id, method, args });
+      });
+    };
+    
+    return {
+      initialize: (config: any) => callMethod('initialize', config),
+      spawnProcess: (options: any) => callMethod('spawnProcess', options),
+      killProcess: (id: any, signal: any) => callMethod('killProcess', id, signal),
+      waitForProcess: (id: any) => callMethod('waitForProcess', id),
+      [Symbol.asyncDispose]: async () => worker.terminate()
+    } as unknown as Remote<WorkerAPI>;
   }
 
   private async initializeFileSystem(): Promise<void> {
@@ -145,7 +185,8 @@ export class DevEnvironment implements IDevEnvironment {
     const features = this.config.features || {};
     
     for (const [feature, enabled] of Object.entries(features)) {
-      if (enabled) {
+      if (enabled && feature !== 'fileSystem') {
+        // fileSystem is always initialized by default, skip loading it as a feature
         await this.loadFeature(feature);
       }
     }

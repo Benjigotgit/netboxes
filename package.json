@@ -37,7 +37,9 @@
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.cjs --platform=node --target=es2020",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationDir dist/types",
     "clean": "rm -rf dist",
-    "dev": "npm run build -- --watch",
+    "dev": "rm -rf dist && npm run build -- --watch && npm run serve",
+    "serve": "node serve.js",
+    "demo": "npm run build && npm run serve",
     "test": "jest",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"

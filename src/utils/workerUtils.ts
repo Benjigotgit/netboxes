@@ -1,6 +1,9 @@
 export function createWorker(scriptUrl: string): Worker {
+  // For blob URLs (local development), we can't use module type
+  const isBlob = scriptUrl.startsWith('blob:');
+  
   const worker = new Worker(scriptUrl, {
-    type: 'module',
+    type: isBlob ? 'classic' : 'module',
     credentials: 'same-origin'
   });
 

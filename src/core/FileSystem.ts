@@ -58,7 +58,21 @@ export class FileSystemImpl implements FileSystem {
     const normalizedPath = this.normalizePath(path);
     
     if (await this.exists(normalizedPath)) {
-      throw new Error(`EEXIST: file already exists, mkdir '${path}'`);
+      // If recursive is true and target is already a directory, this is OK
+      if (recursive) {
+        try {
+          const stat = await this.stat(normalizedPath);
+          if (stat.type === 'directory') {
+            return; // Directory already exists, nothing to do
+          } else {
+            throw new Error(`EEXIST: file already exists, mkdir '${path}'`);
+          }
+        } catch {
+          throw new Error(`EEXIST: file already exists, mkdir '${path}'`);
+        }
+      } else {
+        throw new Error(`EEXIST: file already exists, mkdir '${path}'`);
+      }
     }
 
     const parts = normalizedPath.split('/').filter(Boolean);
@@ -203,6 +217,13 @@ export class FileSystemImpl implements FileSystem {
   }
 
   private async exists(path: string): Promise<boolean> {
+    const normalizedPath = this.normalizePath(path);
+    
+    // Root directory always exists
+    if (normalizedPath === '/') {
+      return true;
+    }
+    
     try {
       await this.stat(path);
       return true;
