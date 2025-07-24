@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetBoxes Browser Dev Environment - Basic Example</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+    }
+    
+    #container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #2d2d2d;
+      padding: 10px 20px;
+      border-bottom: 1px solid #3e3e3e;
+    }
+    
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    
+    .editor-panel {
+      flex: 1;
+      background: #1e1e1e;
+    }
+    
+    .terminal-panel {
+      width: 400px;
+      background: #000;
+      border-left: 1px solid #3e3e3e;
+    }
+    
+    .status {
+      padding: 10px;
+      background: #007acc;
+      color: white;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div class="header">
+      <h1>NetBoxes Dev Environment Demo</h1>
+    </div>
+    <div class="status" id="status">Initializing...</div>
+    <div class="main">
+      <div class="editor-panel" id="editor"></div>
+      <div class="terminal-panel" id="terminal"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createDevEnvironment } from '../dist/index.js';
+    
+    async function init() {
+      const status = document.getElementById('status');
+      
+      try {
+        const env = await createDevEnvironment({
+          container: '#container',
+          features: {
+            terminal: true,
+            editor: true,
+            fileSystem: true
+          },
+          onReady: () => {
+            status.textContent = 'Environment ready!';
+            status.style.background = '#4caf50';
+          },
+          onError: (error) => {
+            status.textContent = `Error: ${error.message}`;
+            status.style.background = '#f44336';
+          }
+        });
+
+        // Mount some initial files
+        await env.mount({
+          'index.js': `console.log('Hello from NetBoxes!');`,
+          'package.json': JSON.stringify({
+            name: 'demo-project',
+            version: '1.0.0',
+            dependencies: {}
+          }, null, 2),
+          'src': {
+            'main.js': `export function main() {
+  console.log('Main function');
+}`
+          }
+        });
+
+        // Open the editor with index.js
+        if (env.editor) {
+          await env.editor.open('index.js');
+        }
+
+        // Run a command in the terminal
+        const process = await env.spawn('echo', ['NetBoxes is running!']);
+        
+        // Make the environment available globally for debugging
+        window.devEnv = env;
+        
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+        status.textContent = `Failed to initialize: ${error.message}`;
+        status.style.background = '#f44336';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
