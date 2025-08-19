@@ -16,6 +16,22 @@ export class FileSystemImpl implements FileSystem {
     private emitter: Emitter<{ 'file:change': FileChangeEvent }>
   ) {}
 
+  async initialize(): Promise<void> {
+    // Ensure root directory exists
+    try {
+      await this.stat('/');
+    } catch (error) {
+      // Root directory doesn't exist, create it
+      const rootEntry: FileEntry = {
+        path: '/',
+        content: new Uint8Array(),
+        type: 'directory',
+        modified: Date.now()
+      };
+      await this.db.put('files', rootEntry);
+    }
+  }
+
   async readFile(path: string): Promise<string | Uint8Array> {
     const normalizedPath = this.normalizePath(path);
     const entry = await this.db.get('files', normalizedPath);

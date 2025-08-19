@@ -74,6 +74,7 @@ export interface DevEnvironment {
 }
 
 export interface FileSystem {
+  initialize: () => Promise<void>;
   readFile: (path: string) => Promise<string | Uint8Array>;
   writeFile: (path: string, content: string | Uint8Array) => Promise<void>;
   mkdir: (path: string, recursive?: boolean) => Promise<void>;

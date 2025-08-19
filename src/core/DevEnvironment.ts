@@ -171,6 +171,7 @@ export class DevEnvironment implements IDevEnvironment {
 
   private async initializeFileSystem(): Promise<void> {
     this.fileSystem = new FileSystemImpl(this.db!, this.emitter as any);
+    await this.fileSystem.initialize();
   }
 
   private async initializeProcessManager(): Promise<void> {

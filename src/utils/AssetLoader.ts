@@ -96,23 +96,86 @@ export class AssetLoader {
         
         async spawnProcess(options) {
           const processId = 'mock-process-' + Date.now();
+          const { command, args } = options;
           
           // Create channels for stdio
           const stdoutChannel = new MessageChannel();
           const stderrChannel = new MessageChannel();
           const stdinChannel = new MessageChannel();
           
-          // Send mock output after a short delay
+          // Mock command execution with realistic output
           setTimeout(() => {
-            stdoutChannel.port1.postMessage({
-              type: 'data',
-              buffer: new TextEncoder().encode('Mock process output from: ' + options.command + '\\n')
-            });
+            let output = '';
+            let exitCode = 0;
+            
+            switch (command) {
+              case 'echo':
+                output = (args || []).join(' ') + '\\n';
+                break;
+                
+              case 'node':
+                if (args && args[0] === '--version') {
+                  output = 'v18.17.0\\n';
+                } else {
+                  output = 'Node.js REPL would start here\\n';
+                }
+                break;
+                
+              case 'npm':
+                if (args && args[0] === '--version') {
+                  output = '9.6.7\\n';
+                } else if (args && args[0] === 'install') {
+                  output = 'npm WARN mock This is a mock npm install\\n';
+                  output += 'added 0 packages in 0.1s\\n';
+                } else {
+                  output = 'npm <command>\\n\\nUsage:\\nnpm install\\nnpm --version\\n';
+                }
+                break;
+                
+              case 'ls':
+                output = 'index.js  package.json  src/\\n';
+                break;
+                
+              case 'pwd':
+                output = '/\\n';
+                break;
+                
+              case 'whoami':
+                output = 'netboxes-user\\n';
+                break;
+                
+              case 'date':
+                output = new Date().toString() + '\\n';
+                break;
+                
+              case 'uname':
+                output = 'NetBoxes 1.0.0\\n';
+                break;
+                
+              default:
+                output = command + ': command not found\\n';
+                exitCode = 127;
+                break;
+            }
+            
+            // Send output
+            if (output) {
+              stdoutChannel.port1.postMessage({
+                type: 'data',
+                buffer: new TextEncoder().encode(output)
+              });
+            }
+            
+            // Close streams after a short delay
             setTimeout(() => {
               stdoutChannel.port1.postMessage({ type: 'close' });
               stderrChannel.port1.postMessage({ type: 'close' });
-            }, 100);
-          }, 10);
+              
+              // Store exit code for waitForProcess
+              self.mockProcesses = self.mockProcesses || {};
+              self.mockProcesses[processId] = { exitCode };
+            }, 50);
+          }, 20);
           
           // Transfer the ports back to the main thread
           const result = {
@@ -122,7 +185,6 @@ export class AssetLoader {
             stdinPort: stdinChannel.port2
           };
           
-          // Return result with transferable ports
           return result;
         },
         
@@ -131,7 +193,19 @@ export class AssetLoader {
         },
         
         async waitForProcess(id) {
-          return 0;
+          // Wait for process to complete and return exit code
+          return new Promise((resolve) => {
+            const checkProcess = () => {
+              self.mockProcesses = self.mockProcesses || {};
+              const process = self.mockProcesses[id];
+              if (process) {
+                resolve(process.exitCode || 0);
+              } else {
+                setTimeout(checkProcess, 10);
+              }
+            };
+            checkProcess();
+          });
         }
       };
       
